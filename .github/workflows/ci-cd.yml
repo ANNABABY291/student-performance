@@ -1,4 +1,4 @@
-name: CI/CD Pipeline (No Docker Hub)
+name: Build Docker Image and Save Artifact
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -14,29 +14,13 @@ jobs:
       uses: actions/checkout@v3
 
     - name: Build Docker image
-      run: |
-        docker build -t student-performance:latest .
+      run: docker build -t student-performance:latest .
 
     - name: Save Docker image as tarball
-      run: |
-        docker save student-performance:latest -o student-performance.tar
+      run: docker save student-performance:latest -o student-performance.tar
 
-    - name: Copy image tarball to server
-      uses: appleboy/scp-action@v0.1.4
+    - name: Upload Docker image artifact
+      uses: actions/upload-artifact@v3
       with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USER }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "student-performance.tar"
-        target: "/home/${{ secrets.SSH_USER }}/student-performance.tar"
-
-    - name: Load image and deploy on server
-      uses: appleboy/ssh-action@v0.1.7
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USER }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        script: |
-          docker load -i /home/${{ secrets.SSH_USER }}/student-performance.tar
-          docker service update --image student-performance:latest student-perf_web || \
-          docker stack deploy -c /home/${{ secrets.SSH_USER }}/student-performance/docker-compose.yml student-perf
+        name: docker-image
+        path: student-performance.tar
