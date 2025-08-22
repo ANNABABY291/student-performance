@@ -1,26 +1,16 @@
-name: Build Docker Image and Save Artifact
+- name: Log in to Docker Hub
+  uses: docker/login-action@v2
+  with:
+    username: ${{ secrets.DOCKERHUB_USERNAME }}
+    password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-on:
-  push:
-    branches:
-      - main
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout repo
-      uses: actions/checkout@v3
-
-    - name: Build Docker image
-      run: docker build -t student-performance:latest .
-
-    - name: Save Docker image as tarball
-      run: docker save student-performance:latest -o student-performance.tar
-
-    - name: Upload Docker image artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: docker-image
-        path: student-performance.tar
+- name: Deploy to server via SSH
+  uses: appleboy/ssh-action@v0.1.7
+  with:
+    host: ${{ secrets.SSH_HOST }}
+    username: ${{ secrets.SSH_USER }}
+    key: ${{ secrets.SSH_PRIVATE_KEY }}
+    script: |
+      docker pull ${{ secrets.DOCKERHUB_USERNAME }}/student-performance:latest
+      docker service update --image ${{ secrets.DOCKERHUB_USERNAME }}/student-performance:latest student-perf_web || \
+      docker stack deploy -c /path/to/docker-compose.yml student-perf
